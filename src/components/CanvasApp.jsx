@@ -1,5 +1,5 @@
-// CanvasApp.jsx
 import React, { useRef, useState, useEffect } from "react";
+import axios from 'axios'; // Added axios import
 import Toolbar from "./Toolbar";
 
 export default function CanvasApp({ userData }) {
@@ -8,7 +8,7 @@ export default function CanvasApp({ userData }) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState("#ff66b2");
   const [brushSize, setBrushSize] = useState(8);
-  const [eraserSize, setEraserSize] = useState(20); // New state for eraser size
+  const [eraserSize, setEraserSize] = useState(20);
   const [isEraser, setIsEraser] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -19,27 +19,88 @@ export default function CanvasApp({ userData }) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [insertedImages, setInsertedImages] = useState([]);
-
-  // New state for handling text
   const [isTyping, setIsTyping] = useState(false);
   const [textData, setTextData] = useState({ x: 0, y: 0, content: "", fontSize: 24, font: "Arial" });
   const [cursorVisible, setCursorVisible] = useState(false);
-  
-  // New state for translate
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [transformStart, setTransformStart] = useState(null);
   const [isTranslating, setIsTranslating] = useState(false);
-
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
-  // Fixed canvas dimensions
   const [canvasSize] = useState({ width: 800, height: 600 });
-  
+
+  const checkAIGeneration = async (text) => {
+    try {
+      const apiKey = process.env.REACT_APP_ZEROGPT_API_KEY;
+      const apiUrl = process.env.REACT_APP_ZEROGPT_API_URL || "https://zerogpt.p.rapidapi.com/api/v1/detectText";
+      const apiHost = process.env.REACT_APP_ZEROGPT_HOST || "zerogpt.p.rapidapi.com";
+
+      if (!apiKey) {
+        throw new Error("ZeroGPT API key not configured");
+      }
+
+      const response = await axios.post(
+        apiUrl,
+        { input_text: text },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-RapidAPI-Key": apiKey,
+            "X-RapidAPI-Host": apiHost,
+          },
+        }
+      );
+
+      return {
+        aiPercentage: response.data.ai_percentage || 0,
+        isAIGenerated: response.data.is_ai_generated || false,
+        message: response.data.message || `AI Detection: ${(response.data.ai_percentage || 0).toFixed(1)}% AI-generated`,
+      };
+    } catch (error) {
+      console.error("AI detection error:", error);
+      return {
+        aiPercentage: 0,
+        isAIGenerated: false,
+        message: "AI detection unavailable",
+      };
+    }
+  };
+
+  const checkSpelling = async (text) => {
+    try {
+      // Using LanguageTool API as an example; replace with your preferred spell-check service
+      const response = await axios.post(
+        "https://api.languagetool.org/v2/check",
+        new URLSearchParams({
+          text: text,
+          language: "en-US",
+        }),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      );
+
+      const errors = response.data.matches || [];
+      return {
+        errors,
+        message: errors.length
+          ? `Found ${errors.length} spelling/grammar issue${errors.length > 1 ? 's' : ''}`
+          : "No spelling issues found",
+      };
+    } catch (error) {
+      console.error("Spell check error:", error);
+      return {
+        errors: [],
+        message: "Spell check unavailable",
+      };
+    }
+  };
+
   useEffect(() => {
     const cvs = canvasRef.current;
     if (!cvs) return;
 
-    // Set fixed canvas dimensions
     cvs.width = canvasSize.width;
     cvs.height = canvasSize.height;
     cvs.style.width = `${canvasSize.width}px`;
@@ -47,8 +108,6 @@ export default function CanvasApp({ userData }) {
     cvs.style.backgroundColor = 'black';
 
     const ctx = cvs.getContext("2d");
-    
-    // Set white background for drawing area
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
@@ -58,12 +117,10 @@ export default function CanvasApp({ userData }) {
 
   useEffect(() => {
     if (toolMode !== 'text' && isTyping) {
-      // If tool is switched while typing, finalize the text
       drawTextOnCanvas(true);
     }
   }, [toolMode]);
 
-  // Effect to handle keyboard input for the text tool
   useEffect(() => {
     if (!isTyping) return;
 
@@ -79,7 +136,6 @@ export default function CanvasApp({ userData }) {
         return;
       }
 
-      // Allow alphanumeric, space, and symbol characters
       if (e.key.length === 1) {
         handleTextChange((prev) => prev + e.key);
       }
@@ -91,7 +147,6 @@ export default function CanvasApp({ userData }) {
     };
   }, [isTyping, textData, color, historyIndex]);
 
-  // Effect to handle cursor blinking
   useEffect(() => {
     if (!isTyping) {
       setCursorVisible(false);
@@ -100,14 +155,13 @@ export default function CanvasApp({ userData }) {
 
     const cursorInterval = setInterval(() => {
       setCursorVisible((prev) => !prev);
-    }, 500); // Blink every 500ms
+    }, 500);
 
     return () => {
       clearInterval(cursorInterval);
     };
   }, [isTyping]);
 
-  // Effect to redraw text and cursor when cursor visibility changes
   useEffect(() => {
     if (isTyping) {
       handleTextChange(textData.content);
@@ -132,7 +186,6 @@ export default function CanvasApp({ userData }) {
     const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
     const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
 
-    // Inverse transform the pointer coordinates
     const x = (clientX - rect.left) / zoom;
     const y = (clientY - rect.top) / zoom;
 
@@ -143,7 +196,6 @@ export default function CanvasApp({ userData }) {
     if (toolMode === "text") {
       const pos = getPointerPos(e);
 
-      // If already typing, finalize the current text first
       if (isTyping) {
         drawTextOnCanvas(true);
       }
@@ -158,7 +210,6 @@ export default function CanvasApp({ userData }) {
       return;
     }
 
-    // Handle translate mode
     if (toolMode === "translate") {
       const pos = getPointerPos(e);
       setTransformStart({ x: pos.x, y: pos.y, translate: { ...translate } });
@@ -218,10 +269,9 @@ export default function CanvasApp({ userData }) {
     ctx.moveTo(pos.x, pos.y);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.lineWidth = isEraser ? eraserSize : brushSize; // Use appropriate size based on tool
+    ctx.lineWidth = isEraser ? eraserSize : brushSize;
     
     if (isEraser) {
-      // Use source-over with white color to erase to background
       ctx.globalCompositeOperation = "source-over";
       ctx.strokeStyle = 'white';
     } else {
@@ -231,13 +281,11 @@ export default function CanvasApp({ userData }) {
   }
 
   function draw(e) {
-    // Handle translate mode with improved performance
     if (toolMode === "translate" && transformStart && isTranslating) {
       const pos = getPointerPos(e);
       const dx = pos.x - transformStart.x;
       const dy = pos.y - transformStart.y;
       
-      // Use requestAnimationFrame for smoother animation
       requestAnimationFrame(() => {
         setTranslate({
           x: transformStart.translate.x + dx,
@@ -276,7 +324,7 @@ export default function CanvasApp({ userData }) {
       }
       return;
     }
-    if(toolMode === 'text') return; // Prevents drawing while in text mode
+    if (toolMode === 'text') return;
 
     if (!isDrawing) return;
     const cvs = canvasRef.current;
@@ -310,7 +358,6 @@ export default function CanvasApp({ userData }) {
   }
 
   function endDraw() {
-    // Reset transform states
     setTransformStart(null);
     setIsTranslating(false);
     
@@ -338,14 +385,11 @@ export default function CanvasApp({ userData }) {
     }
   }
 
-  // New function to handle text changes and redraw the canvas
   function handleTextChange(newContent) {
     const newText = typeof newContent === 'function' ? newContent(textData.content) : newContent;
 
-    // Restore the canvas to its state before typing started
     if (historyIndex >= 0) {
       restoreFromDataURL(history[historyIndex], () => {
-        // After restoring, draw the updated text
         const cvs = canvasRef.current;
         const ctx = cvs.getContext("2d");
         ctx.save();
@@ -354,7 +398,6 @@ export default function CanvasApp({ userData }) {
         ctx.textBaseline = 'top';
         ctx.fillText(newText, textData.x, textData.y);
 
-        // Draw blinking cursor
         if (isTyping && cursorVisible) {
           const textWidth = ctx.measureText(newText).width;
           const cursorX = textData.x + textWidth;
@@ -373,14 +416,12 @@ export default function CanvasApp({ userData }) {
     setTextData({ ...textData, content: newText });
   }
 
-  // Function to draw text on the canvas
   function drawTextOnCanvas(finalize) {
     if (!isTyping) return;
 
     setIsTyping(false);
 
     if (finalize && textData.content.trim()) {
-      // Restore canvas and draw final text
       restoreFromDataURL(history[historyIndex], () => {
         const cvs = canvasRef.current;
         const ctx = cvs.getContext('2d');
@@ -390,11 +431,10 @@ export default function CanvasApp({ userData }) {
         ctx.textBaseline = 'top';
         ctx.fillText(textData.content, textData.x, textData.y);
         ctx.restore();
-        pushHistory(); // Save the final state
+        pushHistory();
         setTextData({ ...textData, content: '' });
       });
     } else {
-      // If not finalizing (e.g., Escape key), just restore the original state
       if (historyIndex >= 0) {
         restoreFromDataURL(history[historyIndex]);
       }
@@ -402,7 +442,6 @@ export default function CanvasApp({ userData }) {
     }
   }
   
-  // Function to cancel text input without drawing
   function cancelTextInput() {
     drawTextOnCanvas(false);
   }
@@ -446,37 +485,28 @@ export default function CanvasApp({ userData }) {
     img.src = dataURL;
   }
 
-  // Clear all and reset defaults
   function clearCanvas() {
     const cvs = canvasRef.current;
     const ctx = cvs.getContext("2d");
     ctx.clearRect(0, 0, cvs.width, cvs.height);
 
-    // Reset states
     setInsertedImages([]);
     setSelectedArea(null);
     setIsEraser(false);
     setToolMode("draw");
     setBrushSize(8);
-    setEraserSize(20); // Reset eraser size
+    setEraserSize(20);
     setColor("#ff66b2");
-    setZoom(1); // reset zoom back to 100%
-
-    // Reset history
+    setZoom(1);
     setHistory([]);
     setHistoryIndex(-1);
-    
-    // Reset text state
     setIsTyping(false);
     setTextData({ x: 0, y: 0, content: "", fontSize: 24, font: "Arial" });
-    
-    // Reset transform state
     setTranslate({ x: 0, y: 0 });
 
     pushHistory();
   }
 
-  // Reset transform function
   function resetTransform() {
     setTranslate({ x: 0, y: 0 });
     redrawCanvas();
@@ -507,7 +537,7 @@ export default function CanvasApp({ userData }) {
       const ih = img.height;
       const cw = cvs.width;
       const ch = cvs.height;
-      const ratio = Math.min(cw / iw, ch / ih) * 0.8; // 80% of available space
+      const ratio = Math.min(cw / iw, ch / ih) * 0.8;
       const w = iw * ratio;
       const h = ih * ratio;
       const x = (cw - w) / 2;
@@ -531,7 +561,6 @@ export default function CanvasApp({ userData }) {
     setToolMode("translate");
   }
 
-  // Add scroll to top function
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
@@ -542,7 +571,6 @@ export default function CanvasApp({ userData }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-black p-0 flex flex-col">
       <header className="max-w-6xl mx-auto w-full flex items-center justify-between mb-4">
-
       </header>
 
       <main className="max-w-6xl mx-auto w-full flex gap-4 flex-1 flex-col">
@@ -572,7 +600,6 @@ export default function CanvasApp({ userData }) {
                 ))}
               </div>
 
-              {/* Brush/Eraser size control */}
               <div className="flex items-center gap-2">
                 <label className="text-xs text-white">Size</label>
                 <input
@@ -621,7 +648,6 @@ export default function CanvasApp({ userData }) {
                 />
               </div>
 
-              {/* Font Size and Family Controls */}
               <div className="flex items-center gap-2">
                 <label className="text-xs text-white">Font Size</label>
                 <input
@@ -672,17 +698,12 @@ export default function CanvasApp({ userData }) {
                 </div>
               </div>
               
-              {/* Display current transform values */}
               {toolMode === "translate" && (
                 <div className="text-white text-xs">
                   X: {Math.round(translate.x)} Y: {Math.round(translate.y)}
                 </div>
               )}
-
-            
             </div>
-
-            
           </div>
 
           {isMenuOpen && (
@@ -691,129 +712,124 @@ export default function CanvasApp({ userData }) {
                   <i className="fas fa-times"></i>
               </button>
               <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex gap-2">
-                {["#ff00ff", "#0066ff", "#00ff00", "#fff500"].map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => {
-                      setColor(c);
-                      setIsEraser(false);
-                    }}
-                    className="w-8 h-8 rounded"
-                    style={{ background: c }}
+                <div className="flex gap-2">
+                  {["#ff00ff", "#0066ff", "#00ff00", "#fff500"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => {
+                        setColor(c);
+                        setIsEraser(false);
+                      }}
+                      className="w-8 h-8 rounded"
+                      style={{ background: c }}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-white">Size</label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={200}
+                    value={brushSize}
+                    onChange={(e) => setBrushSize(Number(e.target.value))}
                   />
-                ))}
-              </div>
-
-              {/* Brush/Eraser size control */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-white">Size</label>
-                <input
-                  type="range"
-                  min={1}
-                  max={200}
-                  value={brushSize}
-                  onChange={(e) => setBrushSize(Number(e.target.value))}
-                />
-                <input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={brushSize}
-                  onChange={(e) => {
-                    let val = Number(e.target.value);
-                    if (val < 1) val = 1;
-                    if (val > 200) val = 200;
-                    setBrushSize(val);
-                  }}
-                  className="w-16 px-1 py-0.5 rounded text-black text-sm"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-white">Eraser Size</label>
-                <input
-                  type="range"
-                  min={1}
-                  max={200}
-                  value={eraserSize}
-                  onChange={(e) => setEraserSize(Number(e.target.value))}
-                />
-                <input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={eraserSize}
-                  onChange={(e) => {
-                    let val = Number(e.target.value);
-                    if (val < 1) val = 1;
-                    if (val > 200) val = 200;
-                    setEraserSize(val);
-                  }}
-                  className="w-16 px-1 py-0.5 rounded text-black text-sm"
-                />
-              </div>
-
-              {/* Font Size and Family Controls */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-white">Font Size</label>
-                <input
-                  type="range"
-                  min="8"
-                  max="72"
-                  value={textData.fontSize}
-                  onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
-                  className="w-24"
-                />
-                <input
-                  type="number"
-                  min="8"
-                  max="72"
-                  value={textData.fontSize}
-                  onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
-                  className="w-12 px-1 py-0.5 rounded text-black text-sm"
-                />
-              </div>
-
-              <div className="flex items-center gap-1">
-                <label className="text-xs text-white">Font</label>
-                <select
-                  value={textData.font}
-                  onChange={(e) => setTextData({ ...textData, font: e.target.value })}
-                  className="w-28 px-1 py-0.5 rounded text-black text-sm"
-                >
-                  <option value="Arial">Arial</option>
-                  <option value="Times New Roman">Times New Roman</option>
-                  <option value="Courier New">Courier New</option>
-                  <option value="Verdana">Verdana</option>
-                  <option value="Georgia">Georgia</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-white">Mode</label>
-                <div className="px-2 py-1 rounded bg-gray-50 text-sm">
-                  {toolMode === "select"
-                    ? "Select"
-                    : toolMode === "translate"
-                    ? "Translate"
-                    : toolMode === 'text' 
-                    ? "Text"
-                    : isEraser
-                    ? "Eraser"
-                    : "Brush"}
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={brushSize}
+                    onChange={(e) => {
+                      let val = Number(e.target.value);
+                      if (val < 1) val = 1;
+                      if (val > 200) val = 200;
+                      setBrushSize(val);
+                    }}
+                    className="w-16 px-1 py-0.5 rounded text-black text-sm"
+                  />
                 </div>
-              </div>
-              
-              {/* Display current transform values */}
-              {toolMode === "translate" && (
-                <div className="text-white text-xs">
-                  X: {Math.round(translate.x)} Y: {Math.round(translate.y)}
-                </div>
-              )}
 
-            
-            </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-white">Eraser Size</label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={200}
+                    value={eraserSize}
+                    onChange={(e) => setEraserSize(Number(e.target.value))}
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={eraserSize}
+                    onChange={(e) => {
+                      let val = Number(e.target.value);
+                      if (val < 1) val = 1;
+                      if (val > 200) val = 200;
+                      setEraserSize(val);
+                    }}
+                    className="w-16 px-1 py-0.5 rounded text-black text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-white">Font Size</label>
+                  <input
+                    type="range"
+                    min="8"
+                    max="72"
+                    value={textData.fontSize}
+                    onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
+                    className="w-24"
+                  />
+                  <input
+                    type="number"
+                    min="8"
+                    max="72"
+                    value={textData.fontSize}
+                    onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
+                    className="w-12 px-1 py-0.5 rounded text-black text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <label className="text-xs text-white">Font</label>
+                  <select
+                    value={textData.font}
+                    onChange={(e) => setTextData({ ...textData, font: e.target.value })}
+                    className="w-28 px-1 py-0.5 rounded text-black text-sm"
+                  >
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Georgia">Georgia</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-white">Mode</label>
+                  <div className="px-2 py-1 rounded bg-gray-50 text-sm">
+                    {toolMode === "select"
+                      ? "Select"
+                      : toolMode === "translate"
+                      ? "Translate"
+                      : toolMode === 'text' 
+                      ? "Text"
+                      : isEraser
+                      ? "Eraser"
+                      : "Brush"}
+                  </div>
+                </div>
+                
+                {toolMode === "translate" && (
+                  <div className="text-white text-xs">
+                    X: {Math.round(translate.x)} Y: {Math.round(translate.y)}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -841,7 +857,6 @@ export default function CanvasApp({ userData }) {
                   display: "block", 
                   width: canvasSize.width,
                   height: canvasSize.height,
-                  // Apply transform with 3D acceleration
                   transform: `translate3d(${translate.x}px, ${translate.y}px, 0)`,
                   backfaceVisibility: 'hidden',
                   WebkitBackfaceVisibility: 'hidden',
@@ -857,7 +872,6 @@ export default function CanvasApp({ userData }) {
           </footer>
         </section>
         
-        {/* Bottom Navigation Toolbar */}
         <Toolbar
           isEraser={isEraser}
           setIsEraser={setIsEraser}
@@ -868,27 +882,19 @@ export default function CanvasApp({ userData }) {
           zoom={zoom}
           zoomIn={zoomIn}
           zoomOut={zoomOut}
-          color={color}
-          setColor={setColor}
-          brushSize={brushSize}
-          setBrushSize={setBrushSize}
-          eraserSize={eraserSize}
-          setEraserSize={setEraserSize}
-          handleFileInsert={handleFileInsert}
           toolMode={toolMode}
           setToolMode={setToolMode}
-          // Pass text state and setters to Toolbar
           textData={textData}
-          setTextData={setTextData} // Keep this for font size/family changes
-          handleTextChange={handleTextChange} // Pass the handler for content changes
+          setTextData={setTextData}
           drawTextOnCanvas={drawTextOnCanvas}
           cancelTextInput={cancelTextInput}
           isTyping={isTyping}
-          // Pass transform state and functions to Toolbar
           translate={translate}
           setTranslate={setTranslate}
           resetTransform={resetTransform}
           scrollToTop={scrollToTop}
+          checkAIGeneration={checkAIGeneration}
+          checkSpelling={checkSpelling} // Added checkSpelling prop
         />
       </main>
     </div>
