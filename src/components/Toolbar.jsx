@@ -155,7 +155,10 @@ export default function Toolbar({
             </button>
             <button
               title="Translate"
-              onClick={() => setToolMode("translate")}
+              onClick={() => {
+                setToolMode("translate");
+                setIsEraser(false); // Ensure erase mode is turned off
+              }}
               className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                 toolMode === "translate"
                   ? "bg-blue-500 text-white"
