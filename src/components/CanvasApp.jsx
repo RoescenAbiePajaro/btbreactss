@@ -1,6 +1,8 @@
+// CanvasApp.jsx
 import React, { useRef, useState, useEffect } from "react";
-import axios from 'axios'; // Added axios import
+import axios from 'axios';
 import Toolbar from "./Toolbar";
+import Toast from "./Toast"; // Import the Toast component
 
 export default function CanvasApp({ userData }) {
   const canvasRef = useRef(null);
@@ -27,6 +29,18 @@ export default function CanvasApp({ userData }) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [canvasSize] = useState({ width: 800, height: 600 });
+  const [toasts, setToasts] = useState([]); // State for toast notifications
+
+  // Function to add a new toast
+  const addToast = (message, type = "info", duration = 3000) => {
+    const id = Date.now(); // Unique ID for each toast
+    setToasts((prev) => [...prev, { id, message, type, duration }]);
+  };
+
+  // Function to remove a toast
+  const removeToast = (id) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  };
 
   const checkAIGeneration = async (text) => {
     try {
@@ -50,11 +64,13 @@ export default function CanvasApp({ userData }) {
         }
       );
 
-      return {
+      const result = {
         aiPercentage: response.data.ai_percentage || 0,
         isAIGenerated: response.data.is_ai_generated || false,
         message: response.data.message || `AI Detection: ${(response.data.ai_percentage || 0).toFixed(1)}% AI-generated`,
       };
+      addToast(result.message, result.isAIGenerated ? "error" : "success");
+      return result;
     } catch (error) {
       console.error("AI detection error:", error);
       return {
@@ -67,7 +83,6 @@ export default function CanvasApp({ userData }) {
 
   const checkSpelling = async (text) => {
     try {
-      // Using LanguageTool API as an example; replace with your preferred spell-check service
       const response = await axios.post(
         "https://api.languagetool.org/v2/check",
         new URLSearchParams({
@@ -82,17 +97,21 @@ export default function CanvasApp({ userData }) {
       );
 
       const errors = response.data.matches || [];
+      const message = errors.length
+        ? `Found ${errors.length} spelling/grammar issue${errors.length > 1 ? 's' : ''}`
+        : "No spelling issues found";
+      addToast(message, errors.length > 0 ? "error" : "success");
       return {
         errors,
-        message: errors.length
-          ? `Found ${errors.length} spelling/grammar issue${errors.length > 1 ? 's' : ''}`
-          : "No spelling issues found",
+        message,
       };
     } catch (error) {
       console.error("Spell check error:", error);
+      const errorMessage = "Spell check unavailable";
+      addToast(errorMessage, "error");
       return {
         errors: [],
-        message: "Spell check unavailable",
+        message: errorMessage,
       };
     }
   };
@@ -575,6 +594,19 @@ export default function CanvasApp({ userData }) {
 
       <main className="max-w-6xl mx-auto w-full flex gap-4 flex-1 flex-col">
         <section className="flex-1 bg-black rounded-2xl shadow p-3 flex flex-col">
+          {/* Toast container */}
+          <div className="fixed top-0 left-0 right-0 z-50">
+            {toasts.map((toast) => (
+              <Toast
+                key={toast.id}
+                message={toast.message}
+                type={toast.type}
+                duration={toast.duration}
+                onClose={() => removeToast(toast.id)}
+              />
+            ))}
+          </div>
+
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <div className="md:hidden">
               <button 
@@ -894,7 +926,8 @@ export default function CanvasApp({ userData }) {
           resetTransform={resetTransform}
           scrollToTop={scrollToTop}
           checkAIGeneration={checkAIGeneration}
-          checkSpelling={checkSpelling} // Added checkSpelling prop
+          checkSpelling={checkSpelling}
+          addToast={addToast} // Pass addToast to Toolbar
         />
       </main>
     </div>

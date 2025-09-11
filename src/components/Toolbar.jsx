@@ -111,25 +111,27 @@ export default function Toolbar({
             >
               <i className="fas fa-font text-sm"></i>
             </button>
-            <button
-              title="Check AI Generation"
-              onClick={async () => {
-                if (toolMode === "text" && isTyping && textData.content.trim() && checkAIGeneration) {
-                  setIsAIDetecting(true);
-                  const result = await checkAIGeneration(textData.content);
-                  setAiResult(result);
-                  setIsAIDetecting(false);
-                }
-              }}
-              className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-                toolMode === "text" && isTyping
-                  ? "bg-purple-500 text-white"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
-              disabled={toolMode !== "text" || !isTyping || !textData.content.trim() || !checkAIGeneration}
-            >
-              <i className="fas fa-robot text-sm"></i>
-            </button>
+            {checkAIGeneration && (
+              <button
+                title="Check AI Generation"
+                onClick={async () => {
+                  if (toolMode === "text" && isTyping && textData.content.trim()) {
+                    setIsAIDetecting(true);
+                    const result = await checkAIGeneration(textData.content);
+                    setAiResult(result);
+                    setIsAIDetecting(false);
+                  }
+                }}
+                className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                  toolMode === "text" && isTyping
+                    ? "bg-purple-500 text-white"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+                disabled={toolMode !== "text" || !isTyping || !textData.content.trim()}
+              >
+                <i className="fas fa-robot text-sm"></i>
+              </button>
+            )}
             <button
               title="Check Spelling"
               onClick={async () => {
@@ -263,18 +265,6 @@ export default function Toolbar({
                 </div>
               )}
             </div>
-            {aiResult && (
-              <div
-                className={`w-full p-2 rounded mt-1 text-sm ${
-                  aiResult.aiPercentage > 50
-                    ? "bg-red-900 text-red-300 border border-red-500"
-                    : "bg-green-900 text-green-300 border border-green-500"
-                }`}
-              >
-                {aiResult.message}
-                {aiResult.aiPercentage > 50 && <i className="fas fa-exclamation-triangle ml-2"></i>}
-              </div>
-            )}
             {spellCheckResult && (
               <div
                 className={`w-full p-2 rounded mt-1 text-sm ${
