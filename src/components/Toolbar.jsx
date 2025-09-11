@@ -2,34 +2,7 @@ import React, { useState, useEffect } from "react";
 import { debounce } from "lodash";
 
 export default function Toolbar({
-/*************  ✨ Windsurf Command ⭐  *************/
-/**
- * A toolbar component for the canvas editor.
- *
- * @param {Object} props The component props.
- * @param {boolean} props.isEraser Whether the eraser is enabled.
- * @param {Function} props.setIsEraser A function to set whether the eraser is enabled.
- * @param {Function} props.clearCanvas A function to clear the canvas.
- * @param {Function} props.undo A function to undo the last change.
- * @param {Function} props.redo A function to redo the last change.
- * @param {Function} props.downloadImage A function to download the canvas as an image.
- * @param {number} props.zoom The current zoom level.
- * @param {Function} props.zoomIn A function to increase the zoom level.
- * @param {Function} props.zoomOut A function to decrease the zoom level.
- * @param {string} props.toolMode The current tool mode.
- * @param {Function} props.setToolMode A function to set the current tool mode.
- * @param {Object} props.textData The current text data.
- * @param {Function} props.setTextData A function to set the current text data.
- * @param {Function} props.drawTextOnCanvas A function to draw text on the canvas.
- * @param {Function} props.cancelTextInput A function to cancel text input.
- * @param {boolean} props.isTyping Whether text input is enabled.
- * @param {Object} props.translate The current translate transform.
- * @param {Function} props.setTranslate A function to set the current translate transform.
- * @param {Function} props.resetTransform A function to reset the transform.
- * @param {Function} props.scrollToTop A function to scroll to the top of the canvas.
- * @param {Function} props.checkAIGeneration A function to check if the text is AI-generated.
- */
-/*******  76abc01d-9b72-466a-adf2-8c7914644d61  *******/  isEraser,
+  isEraser,
   setIsEraser,
   clearCanvas,
   undo,
@@ -50,7 +23,8 @@ export default function Toolbar({
   resetTransform,
   scrollToTop,
   checkAIGeneration,
-  checkSpelling, // Added checkSpelling prop
+  checkSpelling,
+  addToast,
 }) {
   const [isAIDetecting, setIsAIDetecting] = useState(false);
   const [aiResult, setAiResult] = useState(null);
@@ -95,8 +69,8 @@ export default function Toolbar({
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gray-800 p-2 shadow-lg z-10">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:justify-center gap-2">
-        <div className="flex items-center justify-center gap-2 flex-wrap w-full overflow-x-auto">
-          <div className="flex gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <div className="flex gap-2 flex-nowrap">
             <button
               title="Add Text"
               onClick={() => {
@@ -190,9 +164,6 @@ export default function Toolbar({
             >
               <i className="fas fa-arrows-alt text-sm"></i>
             </button>
-          </div>
-
-          <div className="flex items-center gap-2">
             <button
               title="Zoom Out"
               onClick={zoomOut}
@@ -208,7 +179,6 @@ export default function Toolbar({
             >
               <i className="fas fa-search-plus text-sm"></i>
             </button>
-
             <div className="h-8 w-px bg-gray-600 mx-1"></div>
             <button
               title="Scroll to top"
@@ -217,9 +187,6 @@ export default function Toolbar({
             >
               <i className="fas fa-arrow-up text-sm"></i>
             </button>
-          </div>
-
-          <div className="flex gap-2">
             <button
               title="Undo"
               onClick={undo}
@@ -246,7 +213,6 @@ export default function Toolbar({
             </button>
           </div>
         </div>
-
         {toolMode === "text" && isTyping && (
           <div className="flex flex-col items-center justify-center gap-2 w-full mt-2 md:hidden">
             <div className="relative w-full flex items-center">

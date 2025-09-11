@@ -1,8 +1,7 @@
-// CanvasApp.jsx
 import React, { useRef, useState, useEffect } from "react";
 import axios from 'axios';
 import Toolbar from "./Toolbar";
-import Toast from "./Toast"; // Import the Toast component
+import Toast from "./Toast";
 
 export default function CanvasApp({ userData }) {
   const canvasRef = useRef(null);
@@ -29,11 +28,11 @@ export default function CanvasApp({ userData }) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [canvasSize] = useState({ width: 800, height: 600 });
-  const [toasts, setToasts] = useState([]); // State for toast notifications
+  const [toasts, setToasts] = useState([]);
 
   // Function to add a new toast
   const addToast = (message, type = "info", duration = 3000) => {
-    const id = Date.now(); // Unique ID for each toast
+    const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type, duration }]);
   };
 
@@ -44,6 +43,15 @@ export default function CanvasApp({ userData }) {
 
   const checkAIGeneration = async (text) => {
     try {
+      // Skip AI check for short text (less than 10 characters)
+      if (text.trim().length < 10) {
+        return {
+          aiPercentage: 0,
+          isAIGenerated: false,
+          message: "Text too short for AI detection",
+        };
+      }
+
       const apiKey = process.env.REACT_APP_ZEROGPT_API_KEY;
       const apiUrl = process.env.REACT_APP_ZEROGPT_API_URL || "https://zerogpt.p.rapidapi.com/api/v1/detectText";
       const apiHost = process.env.REACT_APP_ZEROGPT_HOST || "zerogpt.p.rapidapi.com";
@@ -67,22 +75,33 @@ export default function CanvasApp({ userData }) {
       const result = {
         aiPercentage: response.data.ai_percentage || 0,
         isAIGenerated: response.data.is_ai_generated || false,
-        message: response.data.message || `AI Detection: ${(response.data.ai_percentage || 0).toFixed(1)}% AI-generated`,
+        message: `AI Detection: ${(response.data.ai_percentage || 0).toFixed(1)}% AI-generated`,
       };
+
       addToast(result.message, result.isAIGenerated ? "error" : "success");
       return result;
     } catch (error) {
       console.error("AI detection error:", error);
+      const errorMessage = "AI detection unavailable";
+      addToast(errorMessage, "error");
       return {
         aiPercentage: 0,
         isAIGenerated: false,
-        message: "AI detection unavailable",
+        message: errorMessage,
       };
     }
   };
 
   const checkSpelling = async (text) => {
     try {
+      // Skip check for short text (less than 10 characters)
+      if (text.trim().length < 10) {
+        return {
+          errors: [],
+          message: "Text too short for spelling check",
+        };
+      }
+
       const response = await axios.post(
         "https://api.languagetool.org/v2/check",
         new URLSearchParams({
@@ -97,12 +116,28 @@ export default function CanvasApp({ userData }) {
       );
 
       const errors = response.data.matches || [];
-      const message = errors.length
-        ? `Found ${errors.length} spelling/grammar issue${errors.length > 1 ? 's' : ''}`
-        : "No spelling issues found";
-      addToast(message, errors.length > 0 ? "error" : "success");
+      // Filter out low-confidence or minor suggestions
+      const filteredErrors = errors.filter(
+        (error) =>
+          error.rule.confidence > 0.5 && // Filter low-confidence suggestions
+          error.rule.issueType !== "typographical" // Skip minor issues like capitalization
+      );
+
+      let message;
+      if (filteredErrors.length === 0) {
+        message = "No spelling or grammar issues found";
+      } else {
+        message = `Found ${filteredErrors.length} issue${filteredErrors.length > 1 ? 's' : ''}: `;
+        message += filteredErrors
+          .slice(0, 2) // Limit to first two errors for brevity
+          .map((err) => err.message)
+          .join(", ");
+        if (filteredErrors.length > 2) message += "...";
+      }
+
+      addToast(message, filteredErrors.length > 0 ? "error" : "success");
       return {
-        errors,
+        errors: filteredErrors,
         message,
       };
     } catch (error) {
@@ -119,17 +154,14 @@ export default function CanvasApp({ userData }) {
   useEffect(() => {
     const cvs = canvasRef.current;
     if (!cvs) return;
-
     cvs.width = canvasSize.width;
     cvs.height = canvasSize.height;
     cvs.style.width = `${canvasSize.width}px`;
     cvs.style.height = `${canvasSize.height}px`;
     cvs.style.backgroundColor = 'black';
-
     const ctx = cvs.getContext("2d");
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
-
     redrawInsertedImages();
     pushHistory();
   }, []);
@@ -142,24 +174,20 @@ export default function CanvasApp({ userData }) {
 
   useEffect(() => {
     if (!isTyping) return;
-
     const handleKeyDown = (e) => {
       e.preventDefault();
       if (e.key === 'Enter' || e.key === 'Escape') {
         drawTextOnCanvas(e.key === 'Enter');
         return;
       }
-
       if (e.key === 'Backspace') {
         handleTextChange((prev) => prev.slice(0, -1));
         return;
       }
-
       if (e.key.length === 1) {
         handleTextChange((prev) => prev + e.key);
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -171,11 +199,9 @@ export default function CanvasApp({ userData }) {
       setCursorVisible(false);
       return;
     }
-
     const cursorInterval = setInterval(() => {
       setCursorVisible((prev) => !prev);
     }, 500);
-
     return () => {
       clearInterval(cursorInterval);
     };
@@ -204,38 +230,32 @@ export default function CanvasApp({ userData }) {
     const rect = cvs.getBoundingClientRect();
     const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
     const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
-
     const x = (clientX - rect.left) / zoom;
     const y = (clientY - rect.top) / zoom;
-
     return { x, y };
   }
 
   function beginDraw(e) {
     if (toolMode === "text") {
       const pos = getPointerPos(e);
-
       if (isTyping) {
         drawTextOnCanvas(true);
       }
-
-      setTextData({ 
-        ...textData, 
-        x: pos.x, 
-        y: pos.y, 
-        content: "" 
+      setTextData({
+        ...textData,
+        x: pos.x,
+        y: pos.y,
+        content: ""
       });
       setIsTyping(true);
       return;
     }
-
     if (toolMode === "translate") {
       const pos = getPointerPos(e);
       setTransformStart({ x: pos.x, y: pos.y, translate: { ...translate } });
       setIsTranslating(true);
       return;
     }
-
     if (toolMode === "select") {
       const pos = getPointerPos(e);
       const clickedImage = insertedImages.find(
@@ -245,7 +265,6 @@ export default function CanvasApp({ userData }) {
           pos.y >= img.y &&
           pos.y <= img.y + img.height
       );
-
       if (clickedImage) {
         setSelectedArea({
           x: clickedImage.x,
@@ -263,7 +282,6 @@ export default function CanvasApp({ userData }) {
         drawSelectionRectangle(clickedImage);
         return;
       }
-
       if (selectedArea && isPointInSelection(pos)) {
         setIsDragging(true);
         setDragOffset({
@@ -275,21 +293,19 @@ export default function CanvasApp({ userData }) {
       }
       return;
     }
-
     e.preventDefault();
     const cvs = canvasRef.current;
     const ctx = cvs.getContext("2d");
     const pos = getPointerPos(e);
     setIsDrawing(true);
     setLastPos(pos);
-
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.lineWidth = isEraser ? eraserSize : brushSize;
-    
+   
     if (isEraser) {
       ctx.globalCompositeOperation = "source-over";
       ctx.strokeStyle = 'white';
@@ -304,7 +320,7 @@ export default function CanvasApp({ userData }) {
       const pos = getPointerPos(e);
       const dx = pos.x - transformStart.x;
       const dy = pos.y - transformStart.y;
-      
+     
       requestAnimationFrame(() => {
         setTranslate({
           x: transformStart.translate.x + dx,
@@ -313,7 +329,6 @@ export default function CanvasApp({ userData }) {
       });
       return;
     }
-
     if (toolMode === "select") {
       if (selectedArea && selectedArea.type === "area" && !isDragging) {
         const pos = getPointerPos(e);
@@ -344,7 +359,6 @@ export default function CanvasApp({ userData }) {
       return;
     }
     if (toolMode === 'text') return;
-
     if (!isDrawing) return;
     const cvs = canvasRef.current;
     const ctx = cvs.getContext("2d");
@@ -379,13 +393,12 @@ export default function CanvasApp({ userData }) {
   function endDraw() {
     setTransformStart(null);
     setIsTranslating(false);
-    
+   
     if (toolMode === "select") {
       setIsDragging(false);
       return;
     }
     if (toolMode === "text" || !isDrawing) return;
-
     const ctx = canvasRef.current.getContext("2d");
     ctx.closePath();
     ctx.restore();
@@ -406,7 +419,6 @@ export default function CanvasApp({ userData }) {
 
   function handleTextChange(newContent) {
     const newText = typeof newContent === 'function' ? newContent(textData.content) : newContent;
-
     if (historyIndex >= 0) {
       restoreFromDataURL(history[historyIndex], () => {
         const cvs = canvasRef.current;
@@ -416,7 +428,6 @@ export default function CanvasApp({ userData }) {
         ctx.fillStyle = color;
         ctx.textBaseline = 'top';
         ctx.fillText(newText, textData.x, textData.y);
-
         if (isTyping && cursorVisible) {
           const textWidth = ctx.measureText(newText).width;
           const cursorX = textData.x + textWidth;
@@ -427,19 +438,15 @@ export default function CanvasApp({ userData }) {
           ctx.lineWidth = 1;
           ctx.stroke();
         }
-
         ctx.restore();
       });
     }
-
     setTextData({ ...textData, content: newText });
   }
 
   function drawTextOnCanvas(finalize) {
     if (!isTyping) return;
-
     setIsTyping(false);
-
     if (finalize && textData.content.trim()) {
       restoreFromDataURL(history[historyIndex], () => {
         const cvs = canvasRef.current;
@@ -452,19 +459,21 @@ export default function CanvasApp({ userData }) {
         ctx.restore();
         pushHistory();
         setTextData({ ...textData, content: '' });
+        setToasts([]); // Clear all toasts when finalizing text
       });
     } else {
       if (historyIndex >= 0) {
         restoreFromDataURL(history[historyIndex]);
       }
       setTextData({ ...textData, content: '' });
+      setToasts([]); // Clear toasts even if canceling
     }
   }
-  
+
   function cancelTextInput() {
     drawTextOnCanvas(false);
   }
-  
+
   function pushHistory() {
     const cvs = canvasRef.current;
     const url = cvs.toDataURL("image/png");
@@ -508,7 +517,6 @@ export default function CanvasApp({ userData }) {
     const cvs = canvasRef.current;
     const ctx = cvs.getContext("2d");
     ctx.clearRect(0, 0, cvs.width, cvs.height);
-
     setInsertedImages([]);
     setSelectedArea(null);
     setIsEraser(false);
@@ -522,7 +530,6 @@ export default function CanvasApp({ userData }) {
     setIsTyping(false);
     setTextData({ x: 0, y: 0, content: "", fontSize: 24, font: "Arial" });
     setTranslate({ x: 0, y: 0 });
-
     pushHistory();
   }
 
@@ -589,12 +596,9 @@ export default function CanvasApp({ userData }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-black p-0 flex flex-col">
-      <header className="max-w-6xl mx-auto w-full flex items-center justify-between mb-4">
-      </header>
-
+      <header className="max-w-6xl mx-auto w-full flex items-center justify-between mb-4"></header>
       <main className="max-w-6xl mx-auto w-full flex gap-4 flex-1 flex-col">
         <section className="flex-1 bg-black rounded-2xl shadow p-3 flex flex-col">
-          {/* Toast container */}
           <div className="fixed top-0 left-0 right-0 z-50">
             {toasts.map((toast) => (
               <Toast
@@ -606,17 +610,15 @@ export default function CanvasApp({ userData }) {
               />
             ))}
           </div>
-
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <div className="md:hidden">
-              <button 
+              <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-700 text-gray-300 hover:bg-gray-600"
               >
                 <i className="fas fa-bars"></i>
               </button>
             </div>
-
             <div className="hidden md:flex items-center gap-3 flex-wrap">
               <div className="flex gap-2">
                 {["#ff00ff", "#0066ff", "#00ff00", "#fff500"].map((c) => (
@@ -631,7 +633,6 @@ export default function CanvasApp({ userData }) {
                   />
                 ))}
               </div>
-
               <div className="flex items-center gap-2">
                 <label className="text-xs text-white">Size</label>
                 <input
@@ -655,7 +656,6 @@ export default function CanvasApp({ userData }) {
                   className="w-16 px-1 py-0.5 rounded text-black text-sm"
                 />
               </div>
-
               <div className="flex items-center gap-2">
                 <label className="text-xs text-white">Eraser Size</label>
                 <input
@@ -679,7 +679,6 @@ export default function CanvasApp({ userData }) {
                   className="w-16 px-1 py-0.5 rounded text-black text-sm"
                 />
               </div>
-
               <div className="flex items-center gap-2">
                 <label className="text-xs text-white">Font Size</label>
                 <input
@@ -699,7 +698,6 @@ export default function CanvasApp({ userData }) {
                   className="w-12 px-1 py-0.5 rounded text-black text-sm"
                 />
               </div>
-
               <div className="flex items-center gap-1">
                 <label className="text-xs text-white">Font</label>
                 <select
@@ -714,7 +712,6 @@ export default function CanvasApp({ userData }) {
                   <option value="Georgia">Georgia</option>
                 </select>
               </div>
-
               <div className="flex items-center gap-2">
                 <label className="text-xs text-white">Mode</label>
                 <div className="px-2 py-1 rounded bg-gray-50 text-sm">
@@ -722,14 +719,13 @@ export default function CanvasApp({ userData }) {
                     ? "Select"
                     : toolMode === "translate"
                     ? "Translate"
-                    : toolMode === 'text' 
+                    : toolMode === 'text'
                     ? "Text"
                     : isEraser
                     ? "Eraser"
                     : "Brush"}
                 </div>
               </div>
-              
               {toolMode === "translate" && (
                 <div className="text-white text-xs">
                   X: {Math.round(translate.x)} Y: {Math.round(translate.y)}
@@ -737,11 +733,10 @@ export default function CanvasApp({ userData }) {
               )}
             </div>
           </div>
-
           {isMenuOpen && (
             <div className="absolute top-16 left-4 right-4 bg-gray-800 p-4 rounded-lg shadow-lg z-20 flex flex-col gap-4 md:hidden">
               <button onClick={() => setIsMenuOpen(false)} className="absolute top-2 right-2 text-white">
-                  <i className="fas fa-times"></i>
+                <i className="fas fa-times"></i>
               </button>
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex gap-2">
@@ -757,7 +752,6 @@ export default function CanvasApp({ userData }) {
                     />
                   ))}
                 </div>
-
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-white">Size</label>
                   <input
@@ -781,7 +775,6 @@ export default function CanvasApp({ userData }) {
                     className="w-16 px-1 py-0.5 rounded text-black text-sm"
                   />
                 </div>
-
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-white">Eraser Size</label>
                   <input
@@ -805,7 +798,6 @@ export default function CanvasApp({ userData }) {
                     className="w-16 px-1 py-0.5 rounded text-black text-sm"
                   />
                 </div>
-
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-white">Font Size</label>
                   <input
@@ -825,7 +817,6 @@ export default function CanvasApp({ userData }) {
                     className="w-12 px-1 py-0.5 rounded text-black text-sm"
                   />
                 </div>
-
                 <div className="flex items-center gap-1">
                   <label className="text-xs text-white">Font</label>
                   <select
@@ -840,7 +831,6 @@ export default function CanvasApp({ userData }) {
                     <option value="Georgia">Georgia</option>
                   </select>
                 </div>
-
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-white">Mode</label>
                   <div className="px-2 py-1 rounded bg-gray-50 text-sm">
@@ -848,14 +838,13 @@ export default function CanvasApp({ userData }) {
                       ? "Select"
                       : toolMode === "translate"
                       ? "Translate"
-                      : toolMode === 'text' 
+                      : toolMode === 'text'
                       ? "Text"
                       : isEraser
                       ? "Eraser"
                       : "Brush"}
                   </div>
                 </div>
-                
                 {toolMode === "translate" && (
                   <div className="text-white text-xs">
                     X: {Math.round(translate.x)} Y: {Math.round(translate.y)}
@@ -864,7 +853,6 @@ export default function CanvasApp({ userData }) {
               </div>
             </div>
           )}
-
           <div
             ref={wrapperRef}
             className="relative flex-1 border border-dashed rounded-lg overflow-hidden flex items-center justify-center"
@@ -885,8 +873,8 @@ export default function CanvasApp({ userData }) {
                 onPointerUp={endDraw}
                 onPointerCancel={endDraw}
                 onPointerLeave={endDraw}
-                style={{ 
-                  display: "block", 
+                style={{
+                  display: "block",
                   width: canvasSize.width,
                   height: canvasSize.height,
                   transform: `translate3d(${translate.x}px, ${translate.y}px, 0)`,
@@ -898,12 +886,10 @@ export default function CanvasApp({ userData }) {
               />
             </div>
           </div>
-
           <footer className="mt-3 text-right text-xs text-gray-500">
             Tip: Use brush size slider or type size directly. Zoom resets to 100% when you Clear All.
           </footer>
         </section>
-        
         <Toolbar
           isEraser={isEraser}
           setIsEraser={setIsEraser}
@@ -927,7 +913,7 @@ export default function CanvasApp({ userData }) {
           scrollToTop={scrollToTop}
           checkAIGeneration={checkAIGeneration}
           checkSpelling={checkSpelling}
-          addToast={addToast} // Pass addToast to Toolbar
+          addToast={addToast}
         />
       </main>
     </div>

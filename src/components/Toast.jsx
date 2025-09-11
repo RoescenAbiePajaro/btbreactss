@@ -1,24 +1,17 @@
-// Toast.jsx
 import React, { useEffect, useState } from "react";
 
 export default function Toast({ message, type = "info", duration = 3000, onClose }) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Show the toast first
     setIsVisible(true);
-    
-    // Then set the timeout to hide it after the duration
     const timer = setTimeout(() => {
       setIsVisible(false);
-      // Wait for the fade-out animation to complete before removing the toast
       const closeTimer = setTimeout(() => {
         onClose();
       }, 300);
-      
       return () => clearTimeout(closeTimer);
     }, duration);
-
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
