@@ -171,7 +171,7 @@ export default function Toolbar({
             >
               <i className="fas fa-search-minus text-sm"></i>
             </button>
-            <span className="text-white text-sm w-10 text-center">{Math.round(zoom * 100)}%</span>
+            <span className="text-white text-sm w-10 h-10 flex items-center justify-center">{Math.round(zoom * 100)}%</span>
             <button
               title="Zoom In"
               onClick={zoomIn}

@@ -29,6 +29,7 @@ export default function CanvasApp({ userData }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [canvasSize] = useState({ width: 800, height: 600 });
   const [toasts, setToasts] = useState([]);
+  const [currentErrorToastId, setCurrentErrorToastId] = useState(null);
 
   // Function to add a new toast
   const addToast = (message, type = "info", duration = 3000) => {
@@ -38,7 +39,16 @@ export default function CanvasApp({ userData }) {
 
   // Function to remove a toast
   const removeToast = (id) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    setToasts((prev) => prev.filter((toast) => {
+      if (toast.id === id) {
+        // If we're removing the current error toast, clear the reference
+        if (id === currentErrorToastId) {
+          setCurrentErrorToastId(null);
+        }
+        return false;
+      }
+      return true;
+    }));
   };
 
   const checkAIGeneration = async (text) => {
@@ -123,6 +133,12 @@ export default function CanvasApp({ userData }) {
           error.rule.issueType !== "typographical" // Skip minor issues like capitalization
       );
 
+      // Remove any existing error toast if the spelling is now correct
+      if (filteredErrors.length === 0 && currentErrorToastId) {
+        removeToast(currentErrorToastId);
+        setCurrentErrorToastId(null);
+      }
+
       let message;
       if (filteredErrors.length === 0) {
         message = "No spelling or grammar issues found";
@@ -135,7 +151,14 @@ export default function CanvasApp({ userData }) {
         if (filteredErrors.length > 2) message += "...";
       }
 
-      addToast(message, filteredErrors.length > 0 ? "error" : "success");
+      // Only show a new toast if there are errors and we don't already have an error toast
+      if (filteredErrors.length > 0 && !currentErrorToastId) {
+        const toastId = Date.now();
+        setCurrentErrorToastId(toastId);
+        addToast(message, "error");
+      } else if (filteredErrors.length === 0) {
+        addToast(message, "success");
+      }
       return {
         errors: filteredErrors,
         message,
@@ -145,6 +168,7 @@ export default function CanvasApp({ userData }) {
       const errorMessage = "Spell check unavailable";
       addToast(errorMessage, "error");
       return {
+        
         errors: [],
         message: errorMessage,
       };
@@ -916,6 +940,18 @@ export default function CanvasApp({ userData }) {
           addToast={addToast}
         />
       </main>
+      {/* Toast Notifications */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            duration={toast.duration}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
