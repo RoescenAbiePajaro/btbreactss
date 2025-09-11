@@ -21,7 +21,7 @@ export default function CanvasApp({ userData }) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [insertedImages, setInsertedImages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [textData, setTextData] = useState({ x: 0, y: 0, content: "", fontSize: 24, font: "Arial" });
+  const [textData, setTextData] = useState({ x: 0, y: 0, content: "", fontSize: 24 });
   const [cursorVisible, setCursorVisible] = useState(false);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [transformStart, setTransformStart] = useState(null);
@@ -168,7 +168,6 @@ export default function CanvasApp({ userData }) {
       const errorMessage = "Spell check unavailable";
       addToast(errorMessage, "error");
       return {
-        
         errors: [],
         message: errorMessage,
       };
@@ -448,7 +447,7 @@ export default function CanvasApp({ userData }) {
         const cvs = canvasRef.current;
         const ctx = cvs.getContext("2d");
         ctx.save();
-        ctx.font = `${textData.fontSize}px ${textData.font}`;
+        ctx.font = `${textData.fontSize}px Arial`;
         ctx.fillStyle = color;
         ctx.textBaseline = 'top';
         ctx.fillText(newText, textData.x, textData.y);
@@ -457,7 +456,7 @@ export default function CanvasApp({ userData }) {
           const cursorX = textData.x + textWidth;
           ctx.beginPath();
           ctx.moveTo(cursorX, textData.y);
-          ctx.lineTo(cursorX, textData.y + textData.fontSize);
+          ctx.lineTo(cursorX, textData.y + 24);
           ctx.strokeStyle = color;
           ctx.lineWidth = 1;
           ctx.stroke();
@@ -476,7 +475,7 @@ export default function CanvasApp({ userData }) {
         const cvs = canvasRef.current;
         const ctx = cvs.getContext('2d');
         ctx.save();
-        ctx.font = `${textData.fontSize}px ${textData.font}`;
+        ctx.font = `${textData.fontSize}px Arial`;
         ctx.fillStyle = color;
         ctx.textBaseline = 'top';
         ctx.fillText(textData.content, textData.x, textData.y);
@@ -552,7 +551,7 @@ export default function CanvasApp({ userData }) {
     setHistory([]);
     setHistoryIndex(-1);
     setIsTyping(false);
-    setTextData({ x: 0, y: 0, content: "", fontSize: 24, font: "Arial" });
+    setTextData({ x: 0, y: 0, content: "", fontSize: 24 });
     setTranslate({ x: 0, y: 0 });
     pushHistory();
   }
@@ -704,39 +703,6 @@ export default function CanvasApp({ userData }) {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-xs text-white">Font Size</label>
-                <input
-                  type="range"
-                  min="8"
-                  max="72"
-                  value={textData.fontSize}
-                  onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
-                  className="w-24"
-                />
-                <input
-                  type="number"
-                  min="8"
-                  max="72"
-                  value={textData.fontSize}
-                  onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
-                  className="w-12 px-1 py-0.5 rounded text-black text-sm"
-                />
-              </div>
-              <div className="flex items-center gap-1">
-                <label className="text-xs text-white">Font</label>
-                <select
-                  value={textData.font}
-                  onChange={(e) => setTextData({ ...textData, font: e.target.value })}
-                  className="w-28 px-1 py-0.5 rounded text-black text-sm"
-                >
-                  <option value="Arial">Arial</option>
-                  <option value="Times New Roman">Times New Roman</option>
-                  <option value="Courier New">Courier New</option>
-                  <option value="Verdana">Verdana</option>
-                  <option value="Georgia">Georgia</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
                 <label className="text-xs text-white">Mode</label>
                 <div className="px-2 py-1 rounded bg-gray-50 text-sm">
                   {toolMode === "select"
@@ -821,39 +787,6 @@ export default function CanvasApp({ userData }) {
                     }}
                     className="w-16 px-1 py-0.5 rounded text-black text-sm"
                   />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-white">Font Size</label>
-                  <input
-                    type="range"
-                    min="8"
-                    max="72"
-                    value={textData.fontSize}
-                    onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
-                    className="w-24"
-                  />
-                  <input
-                    type="number"
-                    min="8"
-                    max="72"
-                    value={textData.fontSize}
-                    onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
-                    className="w-12 px-1 py-0.5 rounded text-black text-sm"
-                  />
-                </div>
-                <div className="flex items-center gap-1">
-                  <label className="text-xs text-white">Font</label>
-                  <select
-                    value={textData.font}
-                    onChange={(e) => setTextData({ ...textData, font: e.target.value })}
-                    className="w-28 px-1 py-0.5 rounded text-black text-sm"
-                  >
-                    <option value="Arial">Arial</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Courier New">Courier New</option>
-                    <option value="Verdana">Verdana</option>
-                    <option value="Georgia">Georgia</option>
-                  </select>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-white">Mode</label>
