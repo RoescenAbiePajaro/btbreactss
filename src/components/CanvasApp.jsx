@@ -21,7 +21,7 @@ export default function CanvasApp({ userData }) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [insertedImages, setInsertedImages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [textData, setTextData] = useState({ x: 0, y: 0, content: "", fontSize: 24 });
+  const [textData, setTextData] = useState({ x: 0, y: 0, content: "", fontSize: 24, cursorPosition: 0 });
   const [cursorVisible, setCursorVisible] = useState(false);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [transformStart, setTransformStart] = useState(null);
@@ -168,6 +168,7 @@ export default function CanvasApp({ userData }) {
       const errorMessage = "Spell check unavailable";
       addToast(errorMessage, "error");
       return {
+        
         errors: [],
         message: errorMessage,
       };
@@ -199,16 +200,53 @@ export default function CanvasApp({ userData }) {
     if (!isTyping) return;
     const handleKeyDown = (e) => {
       e.preventDefault();
+      
       if (e.key === 'Enter' || e.key === 'Escape') {
         drawTextOnCanvas(e.key === 'Enter');
         return;
       }
+      
       if (e.key === 'Backspace') {
-        handleTextChange((prev) => prev.slice(0, -1));
+        setTextData(prev => {
+          if (prev.cursorPosition === 0) return prev;
+          const newContent = prev.content.slice(0, prev.cursorPosition - 1) + 
+                           prev.content.slice(prev.cursorPosition);
+          return {
+            ...prev,
+            content: newContent,
+            cursorPosition: Math.max(0, prev.cursorPosition - 1)
+          };
+        });
         return;
       }
+      
+      if (e.key === 'ArrowLeft') {
+        setTextData(prev => ({
+          ...prev,
+          cursorPosition: Math.max(0, prev.cursorPosition - 1)
+        }));
+        return;
+      }
+      
+      if (e.key === 'ArrowRight') {
+        setTextData(prev => ({
+          ...prev,
+          cursorPosition: Math.min(prev.content.length, prev.cursorPosition + 1)
+        }));
+        return;
+      }
+      
       if (e.key.length === 1) {
-        handleTextChange((prev) => prev + e.key);
+        setTextData(prev => {
+          const newContent = prev.content.slice(0, prev.cursorPosition) + 
+                           e.key + 
+                           prev.content.slice(prev.cursorPosition);
+          return {
+            ...prev,
+            content: newContent,
+            cursorPosition: prev.cursorPosition + 1
+          };
+        });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -268,7 +306,8 @@ export default function CanvasApp({ userData }) {
         ...textData,
         x: pos.x,
         y: pos.y,
-        content: ""
+        content: "",
+        cursorPosition: 0
       });
       setIsTyping(true);
       return;
@@ -442,29 +481,47 @@ export default function CanvasApp({ userData }) {
 
   function handleTextChange(newContent) {
     const newText = typeof newContent === 'function' ? newContent(textData.content) : newContent;
+    const cursorPos = typeof newContent === 'function' ? 
+      newContent(textData.content).length : 
+      (textData.cursorPosition || 0);
+      
     if (historyIndex >= 0) {
       restoreFromDataURL(history[historyIndex], () => {
         const cvs = canvasRef.current;
         const ctx = cvs.getContext("2d");
         ctx.save();
-        ctx.font = `${textData.fontSize}px Arial`;
+        ctx.font = `${textData.fontSize}px ${textData.font}`;
         ctx.fillStyle = color;
         ctx.textBaseline = 'top';
+        
+        // Draw the text
         ctx.fillText(newText, textData.x, textData.y);
-        if (isTyping && cursorVisible) {
-          const textWidth = ctx.measureText(newText).width;
-          const cursorX = textData.x + textWidth;
-          ctx.beginPath();
-          ctx.moveTo(cursorX, textData.y);
-          ctx.lineTo(cursorX, textData.y + 24);
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 1;
-          ctx.stroke();
+        
+        if (isTyping) {
+          // Calculate cursor position
+          const textBeforeCursor = newText.substring(0, textData.cursorPosition);
+          const cursorX = ctx.measureText(textBeforeCursor).width;
+          
+          // Draw cursor if visible
+          if (cursorVisible) {
+            ctx.beginPath();
+            ctx.moveTo(textData.x + cursorX, textData.y);
+            ctx.lineTo(textData.x + cursorX, textData.y + textData.fontSize);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
         }
+        
         ctx.restore();
       });
     }
-    setTextData({ ...textData, content: newText });
+    
+    setTextData(prev => ({
+      ...prev, 
+      content: newText,
+      cursorPosition: Math.min(cursorPos, newText.length)
+    }));
   }
 
   function drawTextOnCanvas(finalize) {
@@ -475,13 +532,13 @@ export default function CanvasApp({ userData }) {
         const cvs = canvasRef.current;
         const ctx = cvs.getContext('2d');
         ctx.save();
-        ctx.font = `${textData.fontSize}px Arial`;
+        ctx.font = `${textData.fontSize}px ${textData.font}`;
         ctx.fillStyle = color;
         ctx.textBaseline = 'top';
         ctx.fillText(textData.content, textData.x, textData.y);
         ctx.restore();
         pushHistory();
-        setTextData({ ...textData, content: '' });
+        setTextData({ ...textData, content: '', cursorPosition: 0 });
         setToasts([]); // Clear all toasts when finalizing text
       });
     } else {
@@ -551,7 +608,7 @@ export default function CanvasApp({ userData }) {
     setHistory([]);
     setHistoryIndex(-1);
     setIsTyping(false);
-    setTextData({ x: 0, y: 0, content: "", fontSize: 24 });
+    setTextData({ x: 0, y: 0, content: "", fontSize: 24, font: "Arial" });
     setTranslate({ x: 0, y: 0 });
     pushHistory();
   }
@@ -703,6 +760,39 @@ export default function CanvasApp({ userData }) {
                 />
               </div>
               <div className="flex items-center gap-2">
+                <label className="text-xs text-white">Font Size</label>
+                <input
+                  type="range"
+                  min="8"
+                  max="72"
+                  value={textData.fontSize}
+                  onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
+                  className="w-24"
+                />
+                <input
+                  type="number"
+                  min="8"
+                  max="72"
+                  value={textData.fontSize}
+                  onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
+                  className="w-12 px-1 py-0.5 rounded text-black text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                <label className="text-xs text-white">Font</label>
+                <select
+                  value={textData.font}
+                  onChange={(e) => setTextData({ ...textData, font: e.target.value })}
+                  className="w-28 px-1 py-0.5 rounded text-black text-sm"
+                >
+                  <option value="Arial">Arial</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Courier New">Courier New</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
                 <label className="text-xs text-white">Mode</label>
                 <div className="px-2 py-1 rounded bg-gray-50 text-sm">
                   {toolMode === "select"
@@ -787,6 +877,39 @@ export default function CanvasApp({ userData }) {
                     }}
                     className="w-16 px-1 py-0.5 rounded text-black text-sm"
                   />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-white">Font Size</label>
+                  <input
+                    type="range"
+                    min="8"
+                    max="72"
+                    value={textData.fontSize}
+                    onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
+                    className="w-24"
+                  />
+                  <input
+                    type="number"
+                    min="8"
+                    max="72"
+                    value={textData.fontSize}
+                    onChange={(e) => setTextData({ ...textData, fontSize: Number(e.target.value) })}
+                    className="w-12 px-1 py-0.5 rounded text-black text-sm"
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  <label className="text-xs text-white">Font</label>
+                  <select
+                    value={textData.font}
+                    onChange={(e) => setTextData({ ...textData, font: e.target.value })}
+                    className="w-28 px-1 py-0.5 rounded text-black text-sm"
+                  >
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Georgia">Georgia</option>
+                  </select>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-white">Mode</label>
