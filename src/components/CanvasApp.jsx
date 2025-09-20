@@ -619,16 +619,44 @@ export default function CanvasApp({ userData }) {
   }
 
   function downloadImage() {
-    const cvs = canvasRef.current;
-    const tmp = document.createElement("canvas");
-    tmp.width = cvs.width;
-    tmp.height = cvs.height;
-    const tctx = tmp.getContext("2d");
-    tctx.drawImage(cvs, 0, 0);
-    const link = document.createElement("a");
-    link.download = "beyond-the-brush-lite.png";
-    link.href = tmp.toDataURL("image/png");
-    link.click();
+    try {
+      const cvs = canvasRef.current;
+      if (!cvs) {
+        addToast('Canvas not found', 'error');
+        return;
+      }
+      
+      // Create a temporary canvas to ensure we get the exact content
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = cvs.width;
+      tempCanvas.height = cvs.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      // Fill with white background first
+      tempCtx.fillStyle = 'white';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      
+      // Draw the current canvas content
+      tempCtx.drawImage(cvs, 0, 0);
+      
+      // Convert to data URL
+      const dataURL = tempCanvas.toDataURL('image/png');
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `drawing-${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = dataURL;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      addToast('Image downloaded successfully!', 'success');
+    } catch (error) {
+      console.error('Error downloading image:', error);
+      addToast('Failed to download image', 'error');
+    }
   }
 
   function handleFileInsert(e) {
