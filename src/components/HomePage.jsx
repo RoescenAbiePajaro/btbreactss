@@ -27,7 +27,7 @@ export default function HomePage() {
             onClick={handleMenuClick}
             className="bg-white text-black py-2 px-6 rounded-lg font-semibold text-sm hover:bg-gray-200 transition duration-200"
           >
-            Menu
+            Admin Login
           </button>
         </div>
       </header>
@@ -57,13 +57,13 @@ export default function HomePage() {
                 href="https://your-get-started-url.com" 
                 className="bg-white text-black py-3 px-6 rounded-lg font-semibold text-lg hover:bg-gray-200 transition duration-200 text-center no-underline"
               >
-                Get Started
+                Visit Link
               </a>
               <a 
                 href="https://your-learn-more-url.com" 
                 className="border-2 border-white text-white py-3 px-6 rounded-lg font-semibold text-lg hover:bg-white hover:text-black transition duration-200 text-center no-underline"
               >
-                Learn More
+                Download Now
               </a>
             </div>
           </div>

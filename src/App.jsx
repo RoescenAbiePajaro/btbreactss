@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from "./components/HomePage";
 import LoadingScreen from "./components/LoadingScreen";
 import CanvasApp from "./components/CanvasApp";
-import AdminPage from "./components/AdminPage";
+import AdminPage from "./components/AdminLogin";
 
 export default function App() {
   const [showLogin, setShowLogin] = useState(true);
