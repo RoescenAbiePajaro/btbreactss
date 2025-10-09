@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import Login from "./components/Login";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import HomePage from "./components/HomePage";
 import LoadingScreen from "./components/LoadingScreen";
 import CanvasApp from "./components/CanvasApp";
+import AdminPage from "./components/AdminPage";
 
 export default function App() {
   const [showLogin, setShowLogin] = useState(true);
@@ -29,9 +31,21 @@ export default function App() {
     );
   }
 
-  if (showLogin) {
-    return <Login onLogin={handleLogin} />;
-  }
-
-  return <CanvasApp userData={userData} />;
+  return (
+    <Router>
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            showLogin ? (
+              <HomePage onLogin={handleLogin} />
+            ) : (
+              <CanvasApp userData={userData} />
+            )
+          } 
+        />
+        <Route path="/admin" element={<AdminPage />} />
+      </Routes>
+    </Router>
+  );
 }
