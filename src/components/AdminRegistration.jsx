@@ -1,0 +1,1 @@
+// components/ AdminRegistration.jsx First Name,Last Name,Username,Password,Confirm Password
