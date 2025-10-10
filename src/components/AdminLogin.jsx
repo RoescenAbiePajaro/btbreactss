@@ -6,12 +6,52 @@ import { useNavigate } from 'react-router-dom';
 const AdminLogin = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Add login logic here (e.g., API call)
-    console.log('Login attempted with:', { username, password });
+    setError('');
+    setLoading(true);
+
+    // Validation
+    if (!username || !password) {
+      setError('Username and password are required');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          username, 
+          password 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log('Login successful:', data);
+        // Store the token in localStorage or context/state management
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
+        navigate('/admin/dashboard'); // Redirect to admin dashboard after successful login
+      } else {
+        setError(data.message || 'Login failed. Please check your credentials.');
+      }
+    } catch (err) {
+      console.error('Error during login:', err);
+      setError('Unable to connect to server. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRegister = () => {
@@ -47,6 +87,9 @@ const AdminLogin = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="bg-black border border-gray-800 rounded-2xl p-8 w-full max-w-md">
           <h2 className="text-2xl font-bold mb-6 text-center text-white">Admin Login</h2>
+          {error && (
+            <div className="text-red-500 text-sm mb-4 text-center">{error}</div>
+          )}
           <div className="space-y-6">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-white">
@@ -79,9 +122,10 @@ const AdminLogin = () => {
             <div>
               <button
                 onClick={handleLogin}
-                className="w-full flex justify-center py-3 px-6 border border-transparent rounded-lg font-semibold text-lg text-black bg-white hover:bg-gray-200 transition duration-200"
+                disabled={loading}
+                className={`w-full flex justify-center py-3 px-6 border border-transparent rounded-lg font-semibold text-lg ${loading ? 'bg-gray-400' : 'bg-white hover:bg-gray-200'} text-black transition duration-200`}
               >
-                Login
+                {loading ? 'Logging in...' : 'Login'}
               </button>
             </div>
             <div>

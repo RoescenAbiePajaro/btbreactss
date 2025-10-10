@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+// AdminRegistration.jsx
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const AdminRegistration = () => {
   const [firstName, setFirstName] = useState('');
@@ -9,12 +11,30 @@ const AdminRegistration = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    // Validation
+    if (!firstName || !lastName || !username || !password || !confirmPassword || !accessCode) {
+      setError('All fields are required');
+      setLoading(false);
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
       return;
     }
 
@@ -24,26 +44,51 @@ const AdminRegistration = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ firstName, lastName, username, password, accessCode }),
+        body: JSON.stringify({ 
+          firstName, 
+          lastName, 
+          username, 
+          password, 
+          accessCode 
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
         console.log('Registration successful:', data);
+        alert('Registration successful!');
         navigate('/admin');
       } else {
         setError(data.message || 'Registration failed');
       }
     } catch (err) {
       console.error('Error during registration:', err);
-      setError('An error occurred. Please try again.');
+      setError('Unable to connect to server. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleBack = () => {
     navigate('/admin');
   };
+
+  // Test server connection (optional)
+  const testServerConnection = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/admin');
+      const data = await response.json();
+      console.log('Server test:', data);
+    } catch (err) {
+      console.error('Server connection test failed:', err);
+    }
+  };
+
+  // Call this on component mount to test connection
+  React.useEffect(() => {
+    testServerConnection();
+  }, []);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -68,7 +113,7 @@ const AdminRegistration = () => {
           {error && (
             <div className="text-red-500 text-sm mb-4 text-center">{error}</div>
           )}
-          <div className="space-y-6">
+          <form onSubmit={handleRegister} className="space-y-6">
             <div>
               <label htmlFor="firstName" className="block text-sm font-medium text-white">
                 First Name
@@ -121,8 +166,9 @@ const AdminRegistration = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 border border-gray-800 rounded-md shadow-sm bg-black text-white focus:outline-none focus:ring-white focus:border-white"
-                placeholder="Enter your password"
+                placeholder="Enter your password (min. 6 characters)"
                 required
+                minLength={6}
               />
             </div>
             <div>
@@ -155,13 +201,14 @@ const AdminRegistration = () => {
             </div>
             <div>
               <button
-                onClick={handleRegister}
-                className="w-full flex justify-center py-3 px-6 border border-transparent rounded-lg font-semibold text-lg text-black bg-white hover:bg-gray-200 transition duration-200"
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center py-3 px-6 border border-transparent rounded-lg font-semibold text-lg text-black bg-white hover:bg-gray-200 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Register
+                {loading ? 'Registering...' : 'Register'}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
