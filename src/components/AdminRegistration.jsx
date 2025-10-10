@@ -1,3 +1,4 @@
+
 // AdminRegistration.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -39,7 +40,7 @@ const AdminRegistration = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/register', {
+      const response = await fetch('http://localhost:5000/api/admin/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

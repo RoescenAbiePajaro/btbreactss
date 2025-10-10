@@ -1,21 +1,18 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const app = express();
+const cors = require('cors');
+require('dotenv').config(); // Add this at the top
 
-// JWT Secret Key (in production, store this in environment variables)
-const JWT_SECRET = 'your_jwt_secret_key_here';
+const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
-require('dotenv').config();
-const MONGODB_URI = process.env.MONGODB_URI;
-mongoose.connect(MONGODB_URI, {
+// MongoDB Connection - now using environment variable
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -38,11 +35,33 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Admin server is running' });
 });
 
+// Generate JWT Token
+const generateToken = (admin) => {
+  return jwt.sign(
+    { id: admin._id, username: admin.username },
+    process.env.JWT_SECRET, // Now using environment variable
+    { expiresIn: '24h' }
+  );
+};
+
+// Middleware to verify JWT
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'No token provided' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Now using environment variable
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
 // Admin Login Endpoint
 app.post('/api/admin/login', async (req, res) => {
   const { username, password } = req.body;
 
-  // Validation
   if (!username || !password) {
     return res.status(400).json({ message: 'Username and password are required' });
   }
@@ -51,27 +70,24 @@ app.post('/api/admin/login', async (req, res) => {
     // Find admin by username
     const admin = await Admin.findOne({ username });
     if (!admin) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid username or password' });
     }
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, admin.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid username or password' });
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: admin._id, username: admin.username },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // Generate token
+    const token = generateToken(admin);
 
-    // Return token and admin info (excluding password)
+    // Return user data (excluding password)
     const adminData = admin.toObject();
     delete adminData.password;
-    
-    res.status(200).json({
+    delete adminData.__v;
+
+    res.json({
       message: 'Login successful',
       token,
       admin: adminData
@@ -95,10 +111,7 @@ app.post('/api/admin/register', async (req, res) => {
     return res.status(400).json({ message: 'Password must be at least 6 characters long' });
   }
 
-  // Check admin access code
-  if (accessCode !== 'ADMIN123') {
-    return res.status(403).json({ message: 'Invalid admin access code' });
-  }
+  // Admin access code validation is now handled by environment variable
 
   try {
     // Check if admin username already exists

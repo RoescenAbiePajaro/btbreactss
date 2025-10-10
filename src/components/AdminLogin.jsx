@@ -7,55 +7,47 @@ const AdminLogin = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
-    // Validation
-    if (!username || !password) {
-      setError('Username and password are required');
-      setLoading(false);
+    // Basic validation
+    if (!username.trim() || !password) {
+      setError('Please enter both username and password');
       return;
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch('http://localhost:5000/api/admin/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          username, 
-          password 
-        }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
-        console.log('Login successful:', data);
-        // Store the token in localStorage or context/state management
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-        }
-        navigate('/admin/dashboard'); // Redirect to admin dashboard after successful login
-      } else {
-        setError(data.message || 'Login failed. Please check your credentials.');
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
       }
-    } catch (err) {
-      console.error('Error during login:', err);
-      setError('Unable to connect to server. Please try again.');
-    } finally {
-      setLoading(false);
+
+      // Save token and admin data
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('admin', JSON.stringify(data.admin));
+      
+      // Redirect to admin dashboard
+      navigate('/admin-dashboard');
+    } catch (error) {
+      console.error('Login error:', error);
+      setError(error.message || 'An error occurred during login. Please try again.');
     }
   };
 
   const handleRegister = () => {
-    navigate('/admin-registration'); // Navigates to AdminRegistration.jsx
+    navigate('/admin-registration');
   };
 
   const handleBack = () => {
@@ -67,18 +59,13 @@ const AdminLogin = () => {
       {/* Header Navigation */}
       <header className="w-full bg-black border-b border-gray-800">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          {/* Left side - Back button */}
-          <button 
+          <button
             onClick={handleBack}
             className="bg-white text-black py-2 px-6 rounded-lg font-semibold text-sm hover:bg-gray-200 transition duration-200"
           >
             Back
           </button>
-          
-          {/* Center - empty for balance */}
           <div className="flex-1 flex justify-center"></div>
-          
-          {/* Right side - empty for balance */}
           <div className="w-20"></div>
         </div>
       </header>
@@ -88,9 +75,9 @@ const AdminLogin = () => {
         <div className="bg-black border border-gray-800 rounded-2xl p-8 w-full max-w-md">
           <h2 className="text-2xl font-bold mb-6 text-center text-white">Admin Login</h2>
           {error && (
-            <div className="text-red-500 text-sm mb-4 text-center">{error}</div>
+            <div className="mb-4 text-red-500 text-center">{error}</div>
           )}
-          <div className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-white">
                 Username
@@ -121,22 +108,22 @@ const AdminLogin = () => {
             </div>
             <div>
               <button
-                onClick={handleLogin}
-                disabled={loading}
-                className={`w-full flex justify-center py-3 px-6 border border-transparent rounded-lg font-semibold text-lg ${loading ? 'bg-gray-400' : 'bg-white hover:bg-gray-200'} text-black transition duration-200`}
+                type="submit"
+                className="w-full flex justify-center py-3 px-6 border border-transparent rounded-lg font-semibold text-lg text-black bg-white hover:bg-gray-200 transition duration-200"
               >
-                {loading ? 'Logging in...' : 'Login'}
+                Login
               </button>
             </div>
             <div>
               <button
+                type="button"
                 onClick={handleRegister}
                 className="w-full flex justify-center py-3 px-6 border-2 border-white rounded-lg font-semibold text-lg text-white hover:bg-white hover:text-black transition duration-200"
               >
                 Register
               </button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
