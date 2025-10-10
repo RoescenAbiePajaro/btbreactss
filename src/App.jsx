@@ -4,6 +4,7 @@ import HomePage from "./components/HomePage";
 import LoadingScreen from "./components/LoadingScreen";
 import CanvasApp from "./components/CanvasApp";
 import AdminPage from "./components/AdminLogin";
+import AdminRegistration from "./components/AdminRegistration";
 
 export default function App() {
   const [showLogin, setShowLogin] = useState(true);
@@ -45,6 +46,7 @@ export default function App() {
           } 
         />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin-registration" element={<AdminRegistration />} />
       </Routes>
     </Router>
   );
