@@ -1,12 +1,21 @@
 // Login.jsx
 
 import React, { useState } from "react";
+import { trackClick } from "../utils/trackClick";
 
 export default function Login({ onLogin }) {
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    // Track the login click
+    await trackClick("btblite_enter", "page_menu");
     // Automatically log in as a student with a default name
     onLogin("student", "Student");
+  };
+
+  const handleExit = async () => {
+    // Track the exit click
+    await trackClick("btblite_exit", "page_menu");
+    window.close();
   };
 
   return (
@@ -39,7 +48,7 @@ export default function Login({ onLogin }) {
 
           <button
             type="button"
-            onClick={() => window.close()}
+            onClick={handleExit}
             className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold hover:bg-pink-600 transition-colors"
           >
             Exit
