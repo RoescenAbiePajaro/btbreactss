@@ -11,12 +11,20 @@ export default function App() {
 
   const handleLogin = (userType, username) => {
     setUserData({ userType, username });
+    setLoadingProgress(0); // Reset progress to 0
     setLoading(true);
   };
 
   const handleLoadingComplete = () => {
     setLoading(false);
     setShowLogin(false);
+  };
+
+  const handleBackToLogin = () => {
+    setShowLogin(true);
+    setLoading(false); // Reset loading state
+    setLoadingProgress(0); // Reset progress
+    setUserData({ userType: "", username: "" });
   };
 
   if (loading) {
@@ -33,5 +41,5 @@ export default function App() {
     return <Login onLogin={handleLogin} />;
   }
 
-  return <CanvasApp userData={userData} />;
+  return <CanvasApp userData={userData} onBackToLogin={handleBackToLogin} />;
 }

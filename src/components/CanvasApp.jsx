@@ -3,7 +3,7 @@ import axios from 'axios';
 import Toolbar from "./Toolbar";
 import Toast from "./Toast";
 
-export default function CanvasApp({ userData }) {
+export default function CanvasApp({ userData, onBackToLogin }) {
   const canvasRef = useRef(null);
   const wrapperRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -704,7 +704,15 @@ export default function CanvasApp({ userData }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-black p-0 flex flex-col">
-      <header className="max-w-6xl mx-auto w-full flex items-center justify-between mb-4"></header>
+      <header className="max-w-6xl mx-auto w-full flex items-center justify-between mb-4 pt-4">
+        <button
+          onClick={onBackToLogin}
+          className="flex items-center justify-center gap-2 px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors  w-full sm:w-auto"
+        >
+          <i className="fas fa-arrow-left"></i>
+          Back
+        </button>
+      </header>
       <main className="max-w-6xl mx-auto w-full flex gap-4 flex-1 flex-col">
         <section className="flex-1 bg-black rounded-2xl shadow p-3 flex flex-col">
           <div className="fixed top-0 left-0 right-0 z-50">

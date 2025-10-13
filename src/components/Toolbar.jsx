@@ -102,7 +102,7 @@ export default function Toolbar({
                 }}
                 className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                   toolMode === "text" && isTyping
-                    ? "bg-purple-500 text-white"
+                    ? "bg-pink-500 text-white"
                     : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                 }`}
                 disabled={toolMode !== "text" || !isTyping || !textData.content.trim()}
@@ -257,7 +257,7 @@ export default function Toolbar({
                 onChange={(e) => setTextData({ ...textData, content: e.target.value })}
                 placeholder="Type here..."
                 className={`px-2 py-1 rounded bg-gray-700 text-white flex-grow ${
-                  aiResult && aiResult.aiPercentage > 50 ? "border-2 border-purple-500" : ""
+                  aiResult && aiResult.aiPercentage > 50 ? "border-2 border-pink-500" : ""
                 } ${
                   spellCheckResult && spellCheckResult.errors.length > 0
                     ? "border-2 border-yellow-500"

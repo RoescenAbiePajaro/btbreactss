@@ -1,3 +1,5 @@
+
+// backend/models/Click.js
 import mongoose from "mongoose";
 
 const clickSchema = new mongoose.Schema({
