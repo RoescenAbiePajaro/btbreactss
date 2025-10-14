@@ -79,7 +79,7 @@ export default function Login({ onLogin }) {
             onClick={handleInstall}
             className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-semibold text-sm transition-colors shadow-md"
           >
-            Install App
+            Install Lite
           </button>
         )}
       </header>
