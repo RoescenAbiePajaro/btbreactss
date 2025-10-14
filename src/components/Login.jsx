@@ -29,6 +29,10 @@ export default function Login({ onLogin }) {
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
+    
+    // Track install button click
+    await trackClick("btblite_install", "page_menu");
+    
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") {
@@ -51,15 +55,18 @@ export default function Login({ onLogin }) {
     window.close();
   };
 
-  return (
+   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 overflow-hidden">
-      {/* ✅ Header with Install Button */}
-      <header className="w-full flex justify-between items-center p-4 fixed top-0 left-0 bg-black bg-opacity-80 backdrop-blur-md z-10">
+      {/* ✅ Professional Header */}
+      <header className="w-full flex justify-between items-center p-4 fixed top-0 left-0 bg-black bg-opacity-80 backdrop-blur-md border-b border-gray-700 z-10">
+        <h1 className="text-white font-semibold tracking-wide text-lg">
+
+        </h1>
 
         {showInstallButton && (
           <button
             onClick={handleInstall}
-            className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-semibold text-sm transition-colors"
+            className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-semibold text-sm transition-colors shadow-md"
           >
             Install App
           </button>
