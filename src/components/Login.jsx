@@ -1,35 +1,82 @@
-// Login.jsx
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { trackClick } from "../utils/trackClick";
 
 export default function Login({ onLogin }) {
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallButton, setShowInstallButton] = useState(false);
+
+  useEffect(() => {
+    // Detect when the app can be installed
+    const beforeInstallHandler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallButton(true);
+    };
+
+    const installedHandler = () => {
+      setShowInstallButton(false);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener("beforeinstallprompt", beforeInstallHandler);
+    window.addEventListener("appinstalled", installedHandler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", beforeInstallHandler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      console.log("✅ PWA installed");
+    } else {
+      console.log("❌ PWA installation dismissed");
+    }
+    setDeferredPrompt(null);
+    setShowInstallButton(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Track the login click
     await trackClick("btblite_enter", "page_menu");
-    // Automatically log in as a student with a default name
     onLogin("student", "Student");
   };
 
   const handleExit = async () => {
-    // Track the exit click
     await trackClick("btblite_exit", "page_menu");
     window.close();
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 overflow-hidden">
-      <div className="bg-black rounded-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 overflow-hidden">
+      {/* ✅ Header with Install Button */}
+      <header className="w-full flex justify-between items-center p-4 fixed top-0 left-0 bg-black bg-opacity-80 backdrop-blur-md z-10">
+
+        {showInstallButton && (
+          <button
+            onClick={handleInstall}
+            className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-semibold text-sm transition-colors"
+          >
+            Install App
+          </button>
+        )}
+      </header>
+
+      {/* ✅ Main Content */}
+      <div className="bg-black rounded-2xl p-8 w-full max-w-md mt-16">
         <div className="text-center mb-8">
           <div className="w-32 h-32 mx-auto mb-4">
-            <img 
-              src="/icon/logo.png" 
-              alt="Beyond The Brush" 
+            <img
+              src="/icon/logo.png"
+              alt="Beyond The Brush"
               className="w-full h-full object-contain"
               onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'block';
+                e.target.style.display = "none";
+                e.target.nextSibling.style.display = "block";
               }}
             />
           </div>
@@ -41,7 +88,7 @@ export default function Login({ onLogin }) {
         <form onSubmit={handleSubmit}>
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-500 transition-colors mb-4"
+            className="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors mb-4"
           >
             Enter
           </button>
@@ -49,7 +96,7 @@ export default function Login({ onLogin }) {
           <button
             type="button"
             onClick={handleExit}
-            className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold hover:bg-pink-600 transition-colors"
+            className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold hover:bg-pink-700 transition-colors"
           >
             Exit
           </button>
