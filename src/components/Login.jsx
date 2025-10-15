@@ -61,10 +61,10 @@ export default function Login({ onLogin }) {
     onLogin("student", "Student");
   };
 
-  // ✅ Handle exit
+  // ✅ Handle exit (updated to navigate to a specific URL)
   const handleExit = async () => {
     await trackClick("btblite_exit", "page_menu");
-    window.close();
+    window.location.href = "https://btbsite.onrender.com"; // Replace with your desired URL
   };
 
   return (
