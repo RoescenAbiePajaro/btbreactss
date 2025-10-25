@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { trackClick } from "../utils/trackClick";
+import AnimatedBackground from "./AnimatedBackground";
 
 export default function Login({ onLogin }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -68,7 +69,8 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 overflow-hidden">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 overflow-hidden relative">
+      <AnimatedBackground />
       {/* ✅ Header */}
       <header className="w-full flex justify-between items-center p-4 fixed top-0 left-0 bg-black bg-opacity-80 backdrop-blur-md border-b border-gray-700 z-10">
         <h1 className="text-white font-semibold tracking-wide text-lg">
