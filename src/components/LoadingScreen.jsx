@@ -1,4 +1,3 @@
-// LoadingScreen.jsx
 import React, { useEffect } from "react";
 import AnimatedBackground from "./AnimatedBackground";
 
@@ -8,12 +7,13 @@ export default function LoadingScreen({ progress, setProgress, onComplete }) {
       setProgress(prev => {
         if (prev >= 100) {
           clearInterval(interval);
-          setTimeout(onComplete, 500);
+          setTimeout(onComplete, 200);
           return 100;
         }
-        return prev + 1;
+        const increment = prev < 50 ? 4 : 2;
+        return Math.min(prev + increment, 100);
       });
-    }, 30);
+    }, 10);
     
     return () => clearInterval(interval);
   }, [setProgress, onComplete]);
@@ -32,17 +32,14 @@ export default function LoadingScreen({ progress, setProgress, onComplete }) {
               e.target.nextSibling.style.display = 'block';
             }}
           />
-          <h1 
-            className="text-4xl font-bold text-white hidden"
-            style={{display: 'none'}}
-          >
-            Beyond The Brush
-          </h1>
         </div>
-        <div className="text-2xl text-white mb-4">Loading...</div>
-        <div className="w-80 h-6 bg-gray-700 rounded-full mx-auto overflow-hidden">
+        
+        <div className="text-2xl text-white mb-6">Loading Please Wait</div>
+        
+        {/* Simple rectangular loading bar */}
+        <div className="w-64 h-3 bg-gray-700 rounded-sm mx-auto overflow-hidden">
           <div 
-            className="h-full bg-blue-500 transition-all duration-300"
+            className="h-full bg-blue-500 transition-all duration-150 rounded-sm"
             style={{ width: `${progress}%` }}
           ></div>
         </div>
