@@ -1,4 +1,4 @@
-// server.js
+// backend/server.js
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -30,6 +30,71 @@ const errorHandler = (err, req, res, next) => {
   return createToastResponse(res, status, message, 'error');
 };
 
+// Device detection utility function
+const detectDeviceInfo = (userAgent) => {
+  const ua = userAgent.toLowerCase();
+  
+  // Device detection
+  const isMobile = /mobile|android|iphone|ipod|blackberry|opera mini/i.test(ua);
+  const isTablet = /tablet|ipad|android(?!.*mobile)/i.test(ua);
+  const isDesktop = !isMobile && !isTablet;
+  
+  // Laptop detection - laptops are typically desktop devices with specific characteristics
+  // macOS devices are commonly laptops (MacBook series)
+  // For Windows/Linux, it's harder to distinguish, but we can use heuristics:
+  // - Non-touch devices are more likely laptops (touch screens are rare on laptops)
+  // - But we'll be conservative and primarily detect macOS as laptops
+  const isLaptop = isDesktop && (
+    /mac os x|macintosh/i.test(ua) || // macOS is typically laptop (MacBook)
+    (/windows/i.test(ua) && !/touch/i.test(ua) && !/tablet/i.test(ua)) // Windows non-touch, non-tablet (likely laptop)
+  );
+  
+  let deviceType = 'Unknown';
+  if (isMobile) deviceType = 'Mobile';
+  else if (isTablet) deviceType = 'Tablet';
+  else if (isLaptop) deviceType = 'Laptop';
+  else if (isDesktop) deviceType = 'Desktop';
+  
+  // OS detection - simplified (no version numbers for Android/iOS)
+  let operatingSystem = 'Unknown';
+  if (/android/i.test(ua)) {
+    operatingSystem = 'Android';
+  } 
+  else if (/ios|iphone|ipad|ipod/i.test(ua)) {
+    operatingSystem = 'iOS';
+  }
+  else if (/windows nt 10/i.test(ua)) operatingSystem = 'Windows 10/11';
+  else if (/windows nt 6.3/i.test(ua)) operatingSystem = 'Windows 8.1';
+  else if (/windows nt 6.2/i.test(ua)) operatingSystem = 'Windows 8';
+  else if (/windows nt 6.1/i.test(ua)) operatingSystem = 'Windows 7';
+  else if (/windows nt 6.0/i.test(ua)) operatingSystem = 'Windows Vista';
+  else if (/windows nt 5.1/i.test(ua)) operatingSystem = 'Windows XP';
+  else if (/windows nt 5.0/i.test(ua)) operatingSystem = 'Windows 2000';
+  else if (/windows|win32/i.test(ua)) operatingSystem = 'Windows';
+  else if (/mac os x/i.test(ua)) operatingSystem = 'macOS';
+  else if (/ubuntu/i.test(ua)) operatingSystem = 'Ubuntu';
+  else if (/linux/i.test(ua)) operatingSystem = 'Linux';
+  
+  // Browser detection
+  let browser = 'Unknown';
+  if (/chrome/i.test(ua)) browser = 'Chrome';
+  else if (/firefox/i.test(ua)) browser = 'Firefox';
+  else if (/safari/i.test(ua)) browser = 'Safari';
+  else if (/edge/i.test(ua)) browser = 'Edge';
+  else if (/opera/i.test(ua)) browser = 'Opera';
+  
+  
+  return {
+    deviceType,
+    operatingSystem,
+    browser,
+    isMobile,
+    isTablet,
+    isDesktop,
+    isLaptop
+  };
+};
+
 require('dotenv').config();
 
 const app = express();
@@ -37,6 +102,8 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+const path = require('path');
+const fs = require('fs');
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI, {
@@ -74,6 +141,16 @@ const Admin = mongoose.model('Admin', adminSchema);
 const clickSchema = new mongoose.Schema({
   button: String,
   page: String,
+  userAgent: String,
+  ipAddress: String,
+  deviceType: String,
+  operatingSystem: String,
+  browser: String,
+  isMobile: Boolean,
+  isTablet: Boolean,
+  isDesktop: Boolean,
+  isLaptop: Boolean,
+  location: Object,
   timestamp: { type: Date, default: Date.now },
 });
 const Click = mongoose.model('Click', clickSchema);
@@ -237,16 +314,40 @@ app.post('/api/admin/register', async (req, res) => {
 // 📊 GUEST CLICK TRACKING ENDPOINTS
 // =====================
 
-// Log a click
+// Click tracking endpoint
 app.post('/api/clicks', async (req, res) => {
   try {
     const { button, page } = req.body;
+    const userAgent = req.headers['user-agent'];
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip;
 
     if (!button || !page) {
       return res.status(400).json({ message: 'Button and page are required' });
     }
 
-    const click = new Click({ button, page });
+    // Detect device information
+    const deviceInfo = detectDeviceInfo(userAgent);
+    
+    // For location detection, you can use a service like ipapi.co
+    // This is a simplified version - you might want to use a proper IP geolocation service
+    let location = {};
+    try {
+      // You can integrate with ipapi.co or similar service here
+      // const locationResponse = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+      // location = await locationResponse.json();
+    } catch (locationError) {
+      console.log('Location detection failed:', locationError);
+    }
+
+    const click = new Click({ 
+      button, 
+      page,
+      userAgent,
+      ipAddress,
+      ...deviceInfo,
+      location
+    });
+    
     await click.save();
     res.status(201).json({ message: 'Click logged successfully' });
   } catch (error) {
@@ -510,6 +611,29 @@ app.delete('/api/access-codes/:id', verifyToken, async (req, res) => {
 // fall back to HOST / PORT and finally sensible defaults.
 const HOST = process.env.WEB_SERVICES_HOST || process.env.HOST || '0.0.0.0';
 const PORT = process.env.WEB_SERVICES_PORT || process.env.PORT || 3000;
+
+// Serve frontend static files (if present) and provide SPA fallback so
+// client-side routes don't return 404 on refresh. The Vite build output
+// is expected at the project root `dist` directory.
+const frontendDistPath = path.resolve(__dirname, '..', 'dist');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+
+  // Catch-all: serve index.html for any non-API route (SPA fallback)
+  app.get('*', (req, res, next) => {
+    // If request is for an API route, continue to API handlers
+    if (req.path.startsWith('/api')) return next();
+
+    const indexPath = path.join(frontendDistPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+
+    return res.status(404).send('Not found');
+  });
+}
+
+app.use(errorHandler);
 
 app.listen(PORT, HOST, () => {
   console.log(`🚀 Admin server running on ${HOST}:${PORT}`);
