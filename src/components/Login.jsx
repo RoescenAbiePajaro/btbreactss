@@ -10,90 +10,89 @@ export default function Login({ onLogin }) {
   const [installButtonReady, setInstallButtonReady] = useState(false);
 
   useEffect(() => {
-    let installPromptTimer;
-    let isInstalled = false;
-
     // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      isInstalled = true;
-    }
+    const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
+                       window.navigator.standalone || 
+                       document.referrer.includes('android-app://');
 
-    // Detect when the app can be installed
-    const beforeInstallHandler = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowInstallButton(true);
-      setInstallButtonReady(true);
-      clearTimeout(installPromptTimer);
-    };
-
-    // Hide install button after installation
-    const installedHandler = () => {
-      setShowInstallButton(false);
-      setDeferredPrompt(null);
-      setInstallButtonReady(true);
-      isInstalled = true;
-    };
-
-    // Show install button immediately for better UX
-    const showInstallImmediately = () => {
-      if (!isInstalled && !installButtonReady) {
-        setShowInstallButton(true);
-        setInstallButtonReady(true);
-      }
-    };
-
-    window.addEventListener("beforeinstallprompt", beforeInstallHandler);
-    window.addEventListener("appinstalled", installedHandler);
-
-    // Show install button immediately, then check if valid
-    installPromptTimer = setTimeout(showInstallImmediately, 800);
-
-    // Check if PWA is already installed
     if (isInstalled) {
       setShowInstallButton(false);
-    }
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", beforeInstallHandler);
-      window.removeEventListener("appinstalled", installedHandler);
-      clearTimeout(installPromptTimer);
-    };
-  }, []);
-
-  // ✅ Handle PWA installation
-  const handleInstall = async () => {
-    if (!deferredPrompt) {
-      // If deferredPrompt isn't available yet, try to trigger it
-      console.log("Install prompt not ready yet");
       return;
     }
 
-    // Track that the install button was clicked
-    await trackClick("btblite_install_click", "page_menu");
+    let deferredPrompt = null;
 
-    try {
-      // Show the browser install prompt
-      deferredPrompt.prompt();
+    const beforeInstallHandler = (e) => {
+      // Prevent Chrome 67 and earlier from automatically showing the prompt
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      deferredPrompt = e;
+      // Update state to show install button
+      setShowInstallButton(true);
+      setDeferredPrompt(e);
+    };
 
-      // Wait for the user's choice
-      const { outcome } = await deferredPrompt.userChoice;
-
-      if (outcome === "accepted") {
-        console.log("✅ PWA installed");
-        await trackClick("btblite_install_success", "page_menu");
-      } else {
-        console.log("❌ PWA installation dismissed");
-        await trackClick("btblite_install_dismissed", "page_menu");
-      }
-    } catch (error) {
-      console.error("Installation failed:", error);
-      // Hide button if installation fails
+    const installedHandler = () => {
+      // Hide the install button
       setShowInstallButton(false);
+      setDeferredPrompt(null);
+    };
+
+    // Check if the browser supports the beforeinstallprompt event
+    if ('onbeforeinstallprompt' in window) {
+      window.addEventListener('beforeinstallprompt', beforeInstallHandler);
+      window.addEventListener('appinstalled', installedHandler);
     }
 
-    setDeferredPrompt(null);
-    setShowInstallButton(false);
+    // Clean up event listeners
+    return () => {
+      if ('onbeforeinstallprompt' in window) {
+        window.removeEventListener('beforeinstallprompt', beforeInstallHandler);
+        window.removeEventListener('appinstalled', installedHandler);
+      }
+    };
+  }, []);
+
+  // Handle PWA installation
+  const handleInstall = async () => {
+    if (!deferredPrompt) {
+      console.log("Install prompt not available");
+      return;
+    }
+
+    try {
+      // Track install attempt
+      const trackPromise = trackClick("btblite_install_click", "page_menu").catch(console.error);
+      
+      // Show the install prompt
+      deferredPrompt.prompt();
+      
+      // Wait for the user to respond to the prompt
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      // Track the outcome
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+        trackClick("btblite_install_success", "page_menu").catch(console.error);
+      } else {
+        console.log('User dismissed the install prompt');
+        trackClick("btblite_install_dismissed", "page_menu").catch(console.error);
+      }
+      
+      // Clear the deferredPrompt so it can be garbage collected
+      setDeferredPrompt(null);
+      
+      // Hide the install button regardless of the outcome
+      setShowInstallButton(false);
+      
+      // Wait for tracking to complete (but don't block the UI)
+      await trackPromise;
+      
+    } catch (error) {
+      console.error('Error during installation:', error);
+      setShowInstallButton(false);
+      setDeferredPrompt(null);
+    }
   };
 
   // ✅ Handle login - Optimized for speed
