@@ -62,7 +62,7 @@ export default function Login({ onLogin }) {
 
     try {
       // Track install attempt
-      const trackPromise = trackClick("btblite_install_click", "page_menu").catch(console.error);
+      const trackPromise = trackClick("btblite_install_click", "beyondthebrush_lite").catch(console.error);
       
       // Show the install prompt
       deferredPrompt.prompt();
@@ -73,10 +73,10 @@ export default function Login({ onLogin }) {
       // Track the outcome
       if (outcome === 'accepted') {
         console.log('User accepted the install prompt');
-        trackClick("btblite_install_success", "page_menu").catch(console.error);
+        trackClick("btblite_install_success", "beyondthebrush_lite").catch(console.error);
       } else {
         console.log('User dismissed the install prompt');
-        trackClick("btblite_install_dismissed", "page_menu").catch(console.error);
+        trackClick("btblite_install_dismissed", "beyondthebrush_lite").catch(console.error);
       }
       
       // Clear the deferredPrompt so it can be garbage collected
@@ -101,7 +101,7 @@ export default function Login({ onLogin }) {
     setIsEnterLoading(true);
     
     // Start tracking immediately without waiting
-    trackClick("btblite_enter", "page_menu").catch(console.error);
+    trackClick("btblite_enter", "beyondthebrush_lite").catch(console.error);
     
     // Process login immediately without artificial delays
     setTimeout(() => {
@@ -114,7 +114,7 @@ export default function Login({ onLogin }) {
     setIsExitLoading(true);
     
     // Start tracking immediately without waiting
-    trackClick("btblite_exit", "page_menu").catch(console.error);
+    trackClick("btblite_exit", "beyondthebrush_lite").catch(console.error);
     
     // Navigate immediately without artificial delays
     setTimeout(() => {
