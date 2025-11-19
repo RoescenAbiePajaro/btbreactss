@@ -238,7 +238,7 @@ export default function Toolbar({
               onClick={() => {
                 downloadImage();
                 setToolMode("draw");
-                trackClick("btblite_download_image", "toolbar_save");
+                trackClick("btblite_saved_canvas", "toolbar_save");
               }}
               className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-700 text-gray-300 hover:bg-pink-600 hover:text-white transition-colors"
             >
